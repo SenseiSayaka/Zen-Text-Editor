@@ -3,16 +3,29 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
-
+#include <errno.h>
 
 //original terminal attributes in orig_termios
 struct termios orig_termios;
 
 
+
+// error handling
+void die(const char *s)
+{
+    perror(s);
+    exit(1);
+}
+
+
+
+
+
 // yup, disable
 void disableRawMode()
 {
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
+        die("tcsetattr");
 }
 
 
@@ -28,8 +41,9 @@ void disableRawMode()
 void enableRawMode()
 {
     // with tcgetattr we get terminal attributes
-    tcgetattr(STDIN_FILENO, &orig_termios);
    
+    if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
+        die("tcgetattr");
    
     // atexit from stdlib, we use it to register our disable mode function to be called automatically    
     atexit(disableRawMode);
@@ -42,13 +56,23 @@ void enableRawMode()
     // c_iflag = input flags
     // c_oflag = output flags
 
-    raw.c_iflag &= ~(ICRNL | IXON);
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP  | IXON);
     raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= (CS8);
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN  | ISIG);
-   
+    
+
+    // VMIN and VTIME from termios.h ,  c_cc it's control characters, an array of bytes 
+    // that control various terminal settings
+    //
+    // VMIN value sets the minimum number of bytes of input needed before read()  can return
+    // VTIME value sets the maximum amount of time to wait before read() returns   
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1;   
    
     // with tcsetattr we set the new attributes after modifying
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
+        die("tcsetattr");
 }
 
 
@@ -56,18 +80,24 @@ int main()
 {
      enableRawMode();
 
-     char c;
-     while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q')
+     while(1)
      {
-        // iscnrtl from ctype.h and it check whether a character is a control character 
-        if(iscntrl(c))
-        {
-            printf("%d\r\n", c);
-        }
-        else
-        {
-            printf("%d ('%c')\r\n", c, c);
-        }
+         char c = '\0';
+         read(STDIN_FILENO, &c, 1);
+         if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN)
+             die("read");
+
+         // iscnrtl from ctype.h and it check whether a character is a control character 
+         if(iscntrl(c))
+         {
+             printf("%d\r\n", c);
+         }
+         else 
+         {
+             printf("%d ('%c')\r\n", c, c);
+         }
+         if (c == 'q') break;
      }
+      
      return 0;
 }
