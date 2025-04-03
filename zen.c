@@ -12,7 +12,7 @@ struct termios orig_termios;
 
 // error handling
 void die(const char *s)
-{
+{   
     perror(s);
     exit(1);
 }
