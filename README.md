@@ -1,6 +1,7 @@
 # Zen Text Editor
 
-![Zen Logo](logo.png)
+![logo](https://github.com/user-attachments/assets/9a802e37-6481-434f-a6a3-fe8915733926)
+
 
 **Zen** — это простой текстовый редактор в стиле Vi, написанный на языке C. Основан на [этом пошаговом руководстве](https://viewsourcecode.org/snaptoken/kilo/index.html).
 
